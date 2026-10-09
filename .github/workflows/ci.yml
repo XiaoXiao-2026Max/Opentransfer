@@ -1,0 +1,47 @@
+name: Go checks and builds
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify dependencies
+        run: go mod verify
+      - name: Check formatting
+        shell: bash
+        run: test -z "$(gofmt -l cmd internal)"
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+      - name: Race tests
+        if: runner.os == 'Linux'
+        run: go test -race ./...
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build-windows.ps1
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        run: ./scripts/build-linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: connect-${{ runner.os }}-amd64
+          path: dist/packages/

@@ -1,0 +1,8 @@
+1. 将 server.example.json 复制为 server.json，填写实际目标服地址和端口。
+2. 把自己的账号凭据保存为同目录的 cookie.json。
+3. 可运行 connect.exe -check 检查配置，使用 connect.exe -version 查看版本。
+4. 双击“启动转服.bat”，等待输出房间号。退出按 Ctrl+C。
+
+本程序内置协议860握手，不需要旧 packets 目录。
+默认 safe 模式不主动回收已经尝试转服的玩家槽位，不保证单房百人。
+旧配置迁移和详细参数见仓库 docs/configuration.md。
