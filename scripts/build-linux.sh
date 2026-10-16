@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 out="${1:-dist/packages/linux-amd64}"
-version="${VERSION:-0.1.0}"
+version="${VERSION:-0.1.1}"
 revision="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 mkdir -p "$out"
 shopt -s dotglob nullglob

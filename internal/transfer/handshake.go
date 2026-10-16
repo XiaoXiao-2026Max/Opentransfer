@@ -46,6 +46,7 @@ func (s *Service) handleTransferMode(g *guest, msg []byte) {
 		}
 		g.negotiated = true
 		g.mu.Unlock()
+		s.startSquatTimer(g)
 		s.log.Debugf("用户%d协议：%d，握手配置：%s", g.uid, version, s.cfg.Handshake.Profile)
 		frame := bedrock.NetworkSettings()
 		if s.cfg.Handshake.UseLegacyFrames {

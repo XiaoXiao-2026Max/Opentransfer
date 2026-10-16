@@ -1,10 +1,12 @@
 # Opentransfer
 
-中国版《我的世界》本地联机转服工具，使用 Go 编写，支持 Windows 和 Linux。账号登录由 AuthEngine 处理，内置基岩协议 860（客户端 1.21.120.0）的握手。
+中国版《我的世界》本地联机转服工具，使用 Go 编写，支持 Windows 和 Linux。账号登录能力已移植到项目内，内置基岩协议 860（客户端 1.21.120.0）的握手。
 
 ## 使用
 
-需要 Go 1.26.5 或更高版本。将 `server.example.json` 复制为 `server.json`，填写目标服地址和端口，将账号凭据保存为 `cookie.json`。示例地址需要按实际情况修改。
+需要 Go 1.26.5 或更高版本。将 `server.example.json` 复制为 `server.json`，填写目标服地址和端口。运行 `connect.exe -login`（Linux 用 `./connect -login`）获取 Cookie；Windows 也可双击“获取Cookie.bat”。已有挂服机凭据可直接放入 `cookie.json`。
+
+登录支持邮箱、手机短信/上行短信、QQ、微信、发烧平台、4399 登录/注册和游客。支持 PC、PE JSON Cookie、Base64 发烧 Token 和 `SDK4399` 账号串。指定 `auth_mode=x19` 登录 PC、`g79` 登录 PE；默认按凭据平台选择。详见[登录说明](docs/login.md)。
 
 Windows 构建后，将示例复制为 `server.json`，在 `dist/packages/windows-amd64` 中填写配置、放入凭据，再启动：
 

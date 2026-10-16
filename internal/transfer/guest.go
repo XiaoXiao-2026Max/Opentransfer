@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Service) onGuestJoin(ng lobby.NewGuest) {
-	if s.cfg.Transfer && s.squat.IsBanned(ng.UID) {
+	if s.cfg.Transfer && s.cfg.Kick.TimeoutBan && s.squat.IsBanned(ng.UID) {
 		s.log.Warnf("用户%d在占位黑名单中，踢出房间", ng.UID)
 		_ = s.lobbyCli.KickOut(ng.UID)
 		return
@@ -59,12 +59,19 @@ func (s *Service) onGuestJoin(ng lobby.NewGuest) {
 	}
 	s.guests[ng.UID] = g
 	s.byRemote[remote] = g
+	pending := s.pendingSignals[remote]
+	delete(s.pendingSignals, remote)
 	occupied := len(s.guests)
 	s.mu.Unlock()
 	if old != nil {
 		s.closeGuest(old)
 	}
 	s.startSquatTimer(g)
+	for _, signal := range pending {
+		if time.Since(signal.at) < 30*time.Second {
+			g.peer.HandleSignal(signal.message)
+		}
+	}
 
 	s.log.Infof("用户%d加入房间", ng.UID)
 	s.sayReady()
@@ -102,6 +109,7 @@ func (s *Service) closeGuest(g *guest) {
 
 func (g *guest) detachLocked() backendConnection {
 	g.closed = true
+	g.timerVersion++
 	if g.timer != nil {
 		g.timer.Stop()
 	}
@@ -132,12 +140,21 @@ func (s *Service) startSquatTimer(g *guest) {
 	}
 	g.mu.Lock()
 	if !g.closed && !g.transferAttempted && !g.transferred {
-		g.timer = time.AfterFunc(time.Duration(s.cfg.Kick.SquatTimeout)*time.Second, func() { s.onSquatTimeout(g) })
+		if g.timer != nil {
+			g.timer.Stop()
+		}
+		g.timerVersion++
+		version := g.timerVersion
+		g.timer = time.AfterFunc(time.Duration(s.cfg.Kick.SquatTimeout)*time.Second, func() { s.onSquatTimer(g, version) })
 	}
 	g.mu.Unlock()
 }
 
 func (s *Service) onSquatTimeout(g *guest) {
+	s.onSquatTimer(g, 0)
+}
+
+func (s *Service) onSquatTimer(g *guest, version uint64) {
 	if !s.cfg.Transfer || s.cfg.Kick.SquatGuardOff || s.cfg.Kick.Mode == config.KickOff {
 		return
 	}
@@ -147,15 +164,22 @@ func (s *Service) onSquatTimeout(g *guest) {
 		return
 	}
 	g.mu.Lock()
-	if g.closed || g.transferred || g.transferAttempted {
+	if g.closed || g.transferred || g.transferAttempted || (version != 0 && version != g.timerVersion) {
 		g.mu.Unlock()
 		s.mu.Unlock()
 		return
 	}
+	strike := s.cfg.Kick.TimeoutBan && g.negotiated
 	rak := g.detachLocked()
 	g.mu.Unlock()
-	n, banned := s.squat.Strike(g.uid)
-	s.log.Warnf("用户%d转服超时，踢出房间，连续占位%d次", g.uid, n)
+	var n int
+	var banned bool
+	if strike {
+		n, banned = s.squat.Strike(g.uid)
+		s.log.Warnf("用户%d转服超时，移出房间，连续占位%d次", g.uid, n)
+	} else {
+		s.log.Warnf("用户%d连接或转服超时，移出房间，不计入黑名单", g.uid)
+	}
 	_ = s.lobbyCli.KickOut(g.uid)
 	s.mu.Unlock()
 	if banned {

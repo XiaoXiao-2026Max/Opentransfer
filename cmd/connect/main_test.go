@@ -126,8 +126,8 @@ func TestCheckConfigRejectsInvalidCookies(t *testing.T) {
 		})
 	}
 	cfg := loadCheckFixture(t, config.Config{Cookie: checkCookieFixture(t, "pc"), AuthMode: "g79", Transfer: true, TransferServer: "127.0.0.1"})
-	if err := checkConfig(cfg); err == nil {
-		t.Fatal("PC cookie accepted by Android login check")
+	if err := checkConfig(cfg); err != nil {
+		t.Fatalf("PC cookie rejected for PE login: %v", err)
 	}
 	cfg = loadCheckFixture(t, config.Config{CookieFile: filepath.Join(t.TempDir(), "missing.json"), Transfer: true, TransferServer: "127.0.0.1"})
 	if err := checkConfig(cfg); err == nil || !strings.Contains(err.Error(), "读取") {

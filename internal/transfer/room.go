@@ -140,6 +140,7 @@ func (s *Service) onCreateRoom(res lobby.CreateRoomResult) {
 	s.mu.Lock()
 	s.roomID = res.RoomID
 	s.mu.Unlock()
+	s.roomOnce.Do(func() { close(s.roomReady) })
 
 	if tags := s.cfg.TagListValues(); len(tags) > 0 {
 		if err := s.lobbyCli.SetTagList(tags); err != nil {
@@ -180,6 +181,7 @@ func (s *Service) keepAlive(roomID uint32) {
 				return
 			}
 			if err := s.lobbyCli.UpdatePerformance(s.cfg.OwnerPingValue(), s.cfg.PerfLvValue()); err != nil {
+				s.failf("房间保活失败: %v", err)
 				return
 			}
 			s.sayReady()

@@ -27,11 +27,15 @@ type Peer struct {
 	pc  *webrtc.PeerConnection
 	h   Handlers
 
-	mu           sync.Mutex
-	connectionID string
-	dc           *webrtc.DataChannel
-	pending      []string
-	closed       bool
+	mu               sync.Mutex
+	signalMu         sync.Mutex
+	connectionID     string
+	dc               *webrtc.DataChannel
+	pending          []string
+	remoteCandidates map[string][]string
+	remoteReady      bool
+	answerSent       bool
+	closed           bool
 }
 
 func NewPeer(uid uint32, local, remote uint64, iceServers []webrtc.ICEServer, h Handlers) (*Peer, error) {
@@ -41,12 +45,13 @@ func NewPeer(uid uint32, local, remote uint64, iceServers []webrtc.ICEServer, h 
 		return nil, fmt.Errorf("rtc: 创建 PeerConnection 失败: %w", err)
 	}
 	p := &Peer{
-		UID:    uid,
-		Remote: remote,
-		Local:  local,
-		log:    logx.New("rtc"),
-		pc:     pc,
-		h:      h,
+		UID:              uid,
+		Remote:           remote,
+		Local:            local,
+		log:              logx.New("rtc"),
+		pc:               pc,
+		h:                h,
+		remoteCandidates: make(map[string][]string),
 	}
 
 	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
@@ -88,30 +93,43 @@ func NewPeer(uid uint32, local, remote uint64, iceServers []webrtc.ICEServer, h 
 }
 
 func (p *Peer) HandleSignal(message string) {
+	p.signalMu.Lock()
+	defer p.signalMu.Unlock()
 	parts := strings.SplitN(message, " ", 3)
 	if len(parts) < 3 {
 		p.log.Warnf("用户%d信令格式错误：%s", p.UID, message)
 		return
 	}
 	kind, connID, payload := parts[0], parts[1], parts[2]
+	p.mu.Lock()
+	closed, current := p.closed, p.connectionID
+	p.mu.Unlock()
+	if closed || (current != "" && current != connID) {
+		return
+	}
 	switch kind {
 	case "CONNECTREQUEST":
 		p.mu.Lock()
+		if p.remoteReady {
+			p.mu.Unlock()
+			return
+		}
 		p.connectionID = connID
 		p.mu.Unlock()
 		if err := p.acceptOffer(payload); err != nil {
 			p.log.Errorf("用户%d连接请求处理失败：%v", p.UID, err)
 		}
 	case "CANDIDATEADD":
-		mid := "0"
-		var idx uint16
-		if err := p.pc.AddICECandidate(webrtc.ICECandidateInit{
-			Candidate:     payload,
-			SDPMid:        &mid,
-			SDPMLineIndex: &idx,
-		}); err != nil {
-			p.log.Debugf("uid=%d 添加 candidate 失败: %v", p.UID, err)
+		p.mu.Lock()
+		if !p.remoteReady {
+			if len(p.remoteCandidates) < 8 && len(p.remoteCandidates[connID]) < 64 {
+				p.remoteCandidates[connID] = append(p.remoteCandidates[connID], payload)
+			}
+			p.mu.Unlock()
+			return
 		}
+		p.mu.Unlock()
+		p.addCandidate(payload)
 	default:
 		p.log.Debugf("uid=%d 忽略信令 %s", p.UID, kind)
 	}
@@ -123,6 +141,14 @@ func (p *Peer) acceptOffer(sdp string) error {
 	}); err != nil {
 		return err
 	}
+	p.mu.Lock()
+	p.remoteReady = true
+	candidates := p.remoteCandidates[p.connectionID]
+	p.remoteCandidates = nil
+	p.mu.Unlock()
+	for _, candidate := range candidates {
+		p.addCandidate(candidate)
+	}
 	answer, err := p.pc.CreateAnswer(nil)
 	if err != nil {
 		return err
@@ -132,22 +158,41 @@ func (p *Peer) acceptOffer(sdp string) error {
 	}
 	p.mu.Lock()
 	connID := p.connectionID
-	pending := p.pending
-	p.pending = nil
 	p.mu.Unlock()
 
 	p.signal("CONNECTRESPONSE " + connID + " " + answer.SDP)
+	p.mu.Lock()
+	p.answerSent = true
+	pending := p.pending
+	p.pending = nil
+	p.mu.Unlock()
 	for _, c := range pending {
 		p.signal("CANDIDATEADD " + connID + " " + c)
 	}
 	return nil
 }
 
+func (p *Peer) addCandidate(candidate string) {
+	mid := "0"
+	var idx uint16
+	if err := p.pc.AddICECandidate(webrtc.ICECandidateInit{
+		Candidate: candidate, SDPMid: &mid, SDPMLineIndex: &idx,
+	}); err != nil {
+		p.log.Debugf("uid=%d 添加 candidate 失败: %v", p.UID, err)
+	}
+}
+
 func (p *Peer) sendCandidate(cand string) {
 	p.mu.Lock()
 	connID := p.connectionID
-	if connID == "" {
-		p.pending = append(p.pending, cand)
+	if p.closed {
+		p.mu.Unlock()
+		return
+	}
+	if !p.answerSent {
+		if len(p.pending) < 64 {
+			p.pending = append(p.pending, cand)
+		}
 		p.mu.Unlock()
 		return
 	}

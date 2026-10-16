@@ -193,7 +193,7 @@ func (c *Credential) CookieString() (string, error) {
 }
 
 func (c *Credential) sauthJSON() (string, error) {
-	if c.Sauth.Platform == "pc" && c.rawSauth != "" {
+	if c.rawSauth != "" {
 		if c.Sauth == c.importedSauth {
 			return c.rawSauth, nil
 		}
@@ -277,10 +277,8 @@ func ParseCookie(cookie string) (*Credential, error) {
 		provider = Provider4399
 	}
 	credential := &Credential{Provider: provider, Sauth: sauth, MAC: payload.MAC, RAM: payload.RAM, ROM: payload.ROM, IsGuest: payload.IsGuest, Emulator: payload.Emulator}
-	if sauth.Platform == "pc" {
-		credential.rawSauth = payload.SauthJSON
-		credential.importedSauth = sauth
-	}
+	credential.rawSauth = payload.SauthJSON
+	credential.importedSauth = sauth
 	if err := validateCredential(credential); err != nil {
 		return nil, err
 	}

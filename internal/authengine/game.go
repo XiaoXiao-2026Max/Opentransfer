@@ -27,9 +27,6 @@ func (a *Account) LoginG79(ctx context.Context, credential *Credential) (*GameSe
 	if err := a.verifyCredential(credential); err != nil {
 		return nil, err
 	}
-	if credential.Sauth.Platform != "ad" {
-		return nil, ErrInvalidCredential
-	}
 	release, err := a.engine.loadG79Release(ctx)
 	if err != nil {
 		return nil, err
@@ -258,6 +255,12 @@ func validLoginEntity(entity loginEntity) bool {
 }
 
 func g79SauthPayload(credential *Credential, clientLoginSN string, profile G79Profile) map[string]any {
+	if credential.Sauth.Platform == "pc" {
+		var payload map[string]any
+		if raw, err := credential.sauthJSON(); err == nil && json.Unmarshal([]byte(raw), &payload) == nil {
+			return payload
+		}
+	}
 	sauth := credential.Sauth
 	payload := map[string]any{
 		"aim_info": sauth.AimInfo, "app_channel": sauth.AppChannel, "client_login_sn": clientLoginSN, "deviceid": sauth.DeviceID, "gameid": sauth.GameID,

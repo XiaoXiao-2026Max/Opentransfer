@@ -37,12 +37,17 @@ type Service struct {
 	script   *script
 	squat    *squatGuard
 
-	mu       sync.Mutex
-	guests   map[uint32]*guest
-	byRemote map[uint64]*guest
-	ice      []webrtc.ICEServer
-	capacity byte
-	roomID   uint32
+	mu             sync.Mutex
+	guests         map[uint32]*guest
+	byRemote       map[uint64]*guest
+	pendingSignals map[uint64][]pendingSignal
+	ice            []webrtc.ICEServer
+	iceReady       chan struct{}
+	iceOnce        sync.Once
+	roomReady      chan struct{}
+	roomOnce       sync.Once
+	capacity       byte
+	roomID         uint32
 
 	staleRetries int
 
@@ -84,6 +89,7 @@ type guest struct {
 	remote            uint64
 	peer              peerConnection
 	timer             *time.Timer
+	timerVersion      uint64
 
 	mu          sync.Mutex
 	negotiated  bool
@@ -106,16 +112,19 @@ func New(cfg *config.Config) (*Service, error) {
 		return nil, err
 	}
 	return &Service{
-		cfg:      cfg,
-		ctx:      context.Background(),
-		log:      log,
-		rng:      rng,
-		script:   sc,
-		squat:    newSquatGuard(cfg.Kick.SquatBanFile, cfg.Kick.SquatStrikes, logx.New("squat")),
-		guests:   map[uint32]*guest{},
-		byRemote: map[uint64]*guest{},
-		capacity: cfg.CapacityValue(),
-		fatal:    make(chan error, 1),
+		cfg:            cfg,
+		ctx:            context.Background(),
+		log:            log,
+		rng:            rng,
+		script:         sc,
+		squat:          newSquatGuard(cfg.Kick.SquatBanFile, cfg.Kick.SquatStrikes, logx.New("squat")),
+		guests:         map[uint32]*guest{},
+		byRemote:       map[uint64]*guest{},
+		pendingSignals: map[uint64][]pendingSignal{},
+		capacity:       cfg.CapacityValue(),
+		fatal:          make(chan error, 1),
+		iceReady:       make(chan struct{}),
+		roomReady:      make(chan struct{}),
 	}, nil
 }
 
@@ -136,6 +145,7 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 		run.squat = s.squat
 		run.ctx, run.cancel = context.WithCancel(ctx)
+		started := time.Now()
 		err = run.runOnce(run.ctx)
 		run.cancel()
 		if ctx.Err() != nil {
@@ -143,6 +153,9 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 		if err == nil {
 			return nil
+		}
+		if time.Since(started) >= time.Minute {
+			attempt = 0
 		}
 		delay := time.Duration(attempt+1) * 3 * time.Second
 		if delay > 30*time.Second {
@@ -214,13 +227,23 @@ func (s *Service) runOnce(ctx context.Context) error {
 		return err
 	}
 
-	select {
-	case <-ctx.Done():
-		return nil
-	case err := <-s.fatal:
-		return err
-	case <-cli.Closed():
-		return fmt.Errorf("大厅连接已关闭: %v", cli.Err())
+	startup := time.NewTimer(45 * time.Second)
+	defer startup.Stop()
+	ready := s.roomReady
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case err := <-s.fatal:
+			return err
+		case <-cli.Closed():
+			return fmt.Errorf("大厅连接已关闭: %v", cli.Err())
+		case <-ready:
+			startup.Stop()
+			ready = nil
+		case <-startup.C:
+			return fmt.Errorf("大厅登录或建房超时")
+		}
 	}
 }
 

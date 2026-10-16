@@ -419,7 +419,13 @@ func ParseFeverToken(value string) (*FeverToken, error) {
 	var token FeverToken
 	decoder := json.NewDecoder(strings.NewReader(string(data)))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&token) != nil || validateFeverToken(&token) != nil {
+	if decoder.Decode(&token) != nil {
+		return nil, ErrInvalidCredential
+	}
+	if token.Platform == "" && token.Version == 0 {
+		token.Platform = "pc"
+	}
+	if validateFeverToken(&token) != nil {
 		return nil, ErrInvalidCredential
 	}
 	return &token, nil

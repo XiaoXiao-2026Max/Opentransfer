@@ -11,12 +11,14 @@ import (
 	"syscall"
 
 	"github.com/XiaoXiao-2026Max/Opentransfer/internal/auth"
+	"github.com/XiaoXiao-2026Max/Opentransfer/internal/authengine"
 	"github.com/XiaoXiao-2026Max/Opentransfer/internal/config"
+	"github.com/XiaoXiao-2026Max/Opentransfer/internal/loginflow"
 	"github.com/XiaoXiao-2026Max/Opentransfer/internal/logx"
 	"github.com/XiaoXiao-2026Max/Opentransfer/internal/transfer"
 )
 
-var version = "0.1.0-dev"
+var version = "0.1.1-dev"
 var revision = "unknown"
 
 func main() {
@@ -25,9 +27,30 @@ func main() {
 	dumpAuth := flag.Bool("dump-auth", false, "只登录并打印 uid / login_token 后退出")
 	showVersion := flag.Bool("version", false, "显示版本后退出")
 	check := flag.Bool("check", false, "检查配置、凭据文件及握手，不连接网络")
+	login := flag.Bool("login", false, "交互登录并保存 Cookie，不创建房间")
+	loginMethod := flag.String("login-method", "", "email/mobile/qq/wechat/fever/4399/4399-register/guest/cookie")
+	cookieOut := flag.String("cookie-out", "cookie.json", "登录成功后保存 Cookie 的路径")
+	authDataDir := flag.String("auth-data-dir", "", "账号设备目录（默认系统用户配置目录）")
+	resumeLogin := flag.Bool("resume-login", false, "恢复已保存游客 Cookie 的验证")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("connect %s (%s) %s/%s\n", version, revision, runtime.GOOS, runtime.GOARCH)
+		return
+	}
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	if *login || *loginMethod != "" {
+		if *check || *dumpAuth {
+			log.Errorf("-login 不能与 -check 或 -dump-auth 同时使用")
+			os.Exit(2)
+		}
+		if err := loginflow.Run(ctx, loginflow.Options{
+			Method: *loginMethod, OutputFile: *cookieOut, Resume: *resumeLogin,
+			EngineConfig: authengine.Config{DataDir: *authDataDir},
+		}); err != nil {
+			log.Errorf("获取 Cookie 失败：%v", err)
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -65,7 +88,7 @@ func main() {
 			log.Errorf("%v", err)
 			os.Exit(1)
 		}
-		creds, err := auth.LoginWithCookie(context.Background(), cookie, cfg.AuthMode)
+		creds, err := auth.LoginWithCookie(ctx, cookie, cfg.AuthMode)
 		if err != nil {
 			log.Errorf("%v", err)
 			os.Exit(1)
@@ -88,9 +111,6 @@ func main() {
 		log.Errorf("%v", err)
 		os.Exit(1)
 	}
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-
 	log.Debugf("程序版本：%s（%s），配置：%s", version, revision, *cfgPath)
 	switch cfg.Kick.Mode {
 	case config.KickLegacy:

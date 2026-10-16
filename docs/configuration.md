@@ -8,7 +8,7 @@
 
 填写 `cookie_file`，或在 `cookie` 中放入 JSON 格式的凭据字符串。也可填写 `uid` 和 `login_token`，或 `uid` 和 `token_md5`。原始 token 必须为 16 字节。`server.json`、`cookie*.json` 和 `dist` 被 Git 忽略；其他名称的凭据文件建议放在仓库外。
 
-`auth_mode` 支持 `auto`、`x19`、`g79`。默认自动识别凭据平台；登录成功后使用账号实际昵称。AuthEngine 凭据保留 `sauth_json` 结构，PC 凭据使用 `pc` 平台。
+`auth_mode` 支持 `auto`、`x19`、`g79`。默认自动识别凭据平台；登录成功后使用账号实际昵称。`sauth_json` 支持 JSON 字符串或对象。PC Cookie 也可显式选择 `g79` 登录 PE，原始平台和渠道字段会保留。`SDK4399` 账号串和 Base64 发烧 Token 会在登录时兑换成 Cookie。
 
 设备记录保存在系统用户配置目录下的 `Opentransfer/AuthEngine`，刷新登录凭据时无需清理。
 
@@ -28,6 +28,7 @@
 | `handshake.interval_ms` | 发包间隔，默认 `500`，范围 `0..5000` |
 | `handshake.transfer_repeat` | 转服请求次数，默认 `1` |
 | `kick.mode` | `safe` 保护转服连接，`off` 关闭踢人 |
+| `kick.timeout_ban_enabled` | 超时累计封禁，默认 `false`；关闭时不读取旧自动黑名单 |
 | `diagnostics.dump_inbound` | 是否保存入站诊断包，默认关闭 |
 
 `transfer=false` 启用代理模式，需填写 `server_ip` 和 `server_port`。
@@ -41,6 +42,8 @@
 `file:` 的相对路径以 `handshake.packets_dir` 为准，默认是配置目录下的 `packets`。
 
 `disconnect` 兼容映射为 `safe`。`legacy`、`pre`、`gap` 需要设置 `experimental.allow_unsafe_kick=true`，可能导致玩家退出游戏。
+
+连接超时仍会释放房间位置。未完成协议协商的连接不会累计封禁；完成协商后重新计时。TURN 凭据在到期前刷新，信令持续无响应 90 秒后重连，首次建房等待超过 45 秒也会重试。
 
 ## 诊断
 

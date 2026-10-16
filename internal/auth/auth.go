@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -61,19 +60,12 @@ const (
 )
 
 func detectMode(cookieJSON string) string {
-	var cookie struct {
-		SauthJSON string `json:"sauth_json"`
-	}
-	if err := json.Unmarshal([]byte(cookieJSON), &cookie); err != nil {
+	normalized, err := NormalizeCookie(cookieJSON)
+	if err != nil {
 		return ModeG79
 	}
-	var sauth struct {
-		Platform string `json:"platform"`
-	}
-	if err := json.Unmarshal([]byte(cookie.SauthJSON), &sauth); err != nil {
-		return ModeG79
-	}
-	if strings.EqualFold(strings.TrimSpace(sauth.Platform), "pc") {
+	parsed, err := authengine.ParseCookie(normalized)
+	if err == nil && parsed.Sauth.Platform == "pc" {
 		return ModeX19
 	}
 	return ModeG79
@@ -93,6 +85,12 @@ func FromTokenMD5(uid uint32, tokenMD5Hex string) (Credentials, error) {
 }
 
 func ValidateCookie(cookieJSON, mode string) error {
+	if mode != "" && mode != ModeAuto && mode != ModeX19 && mode != ModeG79 {
+		return fmt.Errorf("auth: 未知登录方式 %q", mode)
+	}
+	if source, err := parseLegacySource(cookieJSON); err != nil || source != nil {
+		return err
+	}
 	_, _, err := parseCookieForMode(cookieJSON, mode)
 	return err
 }
@@ -101,7 +99,11 @@ func parseCookieForMode(cookieJSON, mode string) (*authengine.Credential, string
 	if mode != "" && mode != ModeAuto && mode != ModeX19 && mode != ModeG79 {
 		return nil, "", fmt.Errorf("auth: 未知登录方式 %q", mode)
 	}
-	parsed, err := authengine.ParseCookie(strings.TrimSpace(cookieJSON))
+	normalized, err := NormalizeCookie(cookieJSON)
+	if err != nil {
+		return nil, "", err
+	}
+	parsed, err := authengine.ParseCookie(normalized)
 	if err != nil {
 		return nil, "", fmt.Errorf("auth: cookie 无效: %w", err)
 	}
@@ -110,9 +112,6 @@ func parseCookieForMode(cookieJSON, mode string) (*authengine.Credential, string
 	}
 	if mode == "" || mode == ModeAuto {
 		mode = detectMode(cookieJSON)
-	}
-	if mode == ModeG79 && parsed.Sauth.Platform != "ad" {
-		return nil, "", fmt.Errorf("auth: g79 需要 Android 凭据: %w", authengine.ErrInvalidCredential)
 	}
 	return parsed, mode, nil
 }
@@ -151,17 +150,18 @@ func authDataDir() (string, error) {
 }
 
 func loginWithEngine(ctx context.Context, engine *authengine.Engine, cookieJSON, mode string) (Credentials, error) {
-	parsed, mode, err := parseCookieForMode(cookieJSON, mode)
-	if err != nil {
+	if err := ValidateCookie(cookieJSON, mode); err != nil {
 		return Credentials{}, err
 	}
-	account, err := engine.OpenAccount(ctx, parsed.Provider, cookieAccountKey(parsed))
-	if err != nil {
-		return Credentials{}, fmt.Errorf("auth: 打开账号失败: %w", err)
-	}
-	credential, err := account.ImportCookie(ctx, cookieJSON)
+	account, credential, err := ResolveCookie(ctx, engine, cookieJSON)
 	if err != nil {
 		return Credentials{}, fmt.Errorf("auth: 导入 cookie 失败: %w", err)
+	}
+	if mode == "" || mode == ModeAuto {
+		mode = ModeG79
+		if credential.Sauth.Platform == "pc" {
+			mode = ModeX19
+		}
 	}
 	var session *authengine.GameSession
 	if mode == ModeX19 {

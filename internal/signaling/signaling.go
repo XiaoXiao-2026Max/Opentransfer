@@ -19,6 +19,9 @@ const (
 	TypeHeartbeat = 0
 	TypeSignal    = 1
 	TypeConfig    = 2
+
+	configPollInterval = 30 * time.Second
+	readTimeout        = 90 * time.Second
 )
 
 type Envelope struct {
@@ -53,10 +56,10 @@ type Client struct {
 	writeMu sync.Mutex
 	h       Handlers
 
-	gotAny    bool
-	stateMu   sync.Mutex
-	closeOnce sync.Once
-	closed    chan struct{}
+	stateMu    sync.Mutex
+	nextConfig time.Time
+	closeOnce  sync.Once
+	closed     chan struct{}
 }
 
 func Dial(ctx context.Context, host string, port int, localID uint64, uid uint32, seedB64, ticketB64 string, h Handlers) (*Client, error) {
@@ -70,16 +73,29 @@ func Dial(ctx context.Context, host string, port int, localID uint64, uid uint32
 		return nil, fmt.Errorf("signaling: 连接 %s 失败: %s", publicEndpoint, strings.ReplaceAll(err.Error(), endpoint, publicEndpoint))
 	}
 	c := &Client{
-		log:    logx.New("signal"),
-		conn:   conn,
-		from:   localID,
-		h:      h,
-		closed: make(chan struct{}),
+		log:        logx.New("signal"),
+		conn:       conn,
+		from:       localID,
+		h:          h,
+		closed:     make(chan struct{}),
+		nextConfig: time.Now().Add(2 * time.Second),
+	}
+	conn.SetReadLimit(2 << 20)
+	_ = conn.SetReadDeadline(time.Now().Add(readTimeout))
+	if err := c.Send(Envelope{Type: TypeConfig}); err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("signaling: 请求 ICE 配置失败: %w", err)
 	}
 	c.log.Debugf("信令连接已建立：%s", publicEndpoint)
 	go c.readLoop()
 	go c.keepAlive()
-	_ = c.Send(Envelope{Type: TypeConfig})
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.closeWith(ctx.Err())
+		case <-c.closed:
+		}
+	}()
 	return c, nil
 }
 
@@ -114,15 +130,12 @@ func (c *Client) readLoop() {
 			c.closeWith(err)
 			return
 		}
-		c.stateMu.Lock()
-		c.gotAny = true
-		c.stateMu.Unlock()
-
 		var e Envelope
 		if err := json.Unmarshal(data, &e); err != nil {
 			c.log.Warnf("信令消息解析失败：%v（%s）", err, truncate(string(data), 200))
 			continue
 		}
+		_ = c.conn.SetReadDeadline(time.Now().Add(readTimeout))
 		switch e.Type {
 		case TypeConfig:
 			var cfg ServerConfig
@@ -131,6 +144,9 @@ func (c *Client) readLoop() {
 				continue
 			}
 			c.log.Debugf("收到 ICE 配置，TURN 服务器：%d 组", len(cfg.TurnAuthServers))
+			c.stateMu.Lock()
+			c.nextConfig = time.Now().Add(configRefreshInterval(cfg.ExpirationInSeconds))
+			c.stateMu.Unlock()
 			if c.h.OnConfig != nil {
 				c.h.OnConfig(cfg)
 			}
@@ -152,7 +168,7 @@ func truncate(s string, n int) string {
 }
 
 func (c *Client) keepAlive() {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	next := time.Now()
 	for {
@@ -168,13 +184,26 @@ func (c *Client) keepAlive() {
 				next = now.Add(10 * time.Second)
 			}
 			c.stateMu.Lock()
-			got := c.gotAny
+			requestConfig := !now.Before(c.nextConfig)
+			if requestConfig {
+				c.nextConfig = now.Add(2 * time.Second)
+			}
 			c.stateMu.Unlock()
-			if !got {
-				_ = c.Send(Envelope{Type: TypeConfig})
+			if requestConfig {
+				if err := c.Send(Envelope{Type: TypeConfig}); err != nil {
+					c.closeWith(err)
+					return
+				}
 			}
 		}
 	}
+}
+
+func configRefreshInterval(expirationSeconds int) time.Duration {
+	if expirationSeconds <= 0 || expirationSeconds >= 38 {
+		return configPollInterval
+	}
+	return time.Duration(expirationSeconds) * time.Second * 4 / 5
 }
 
 func (c *Client) closeWith(err error) {

@@ -2,6 +2,7 @@ package authengine
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -12,6 +13,72 @@ import (
 	"sync/atomic"
 	"testing"
 )
+
+func TestPCCookieCanAuthenticatePEWithoutChangingPlatform(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/release":
+			writeJSON(t, w, map[string]string{"CoreServerUrl": server.URL, "AuthServerUrl": server.URL, "ApiGatewayUrl": server.URL})
+		case "/pe-authentication":
+			body, _ := io.ReadAll(r.Body)
+			wire, err := hex.DecodeString(string(body))
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			plain, err := g79Decrypt(wire)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			object, err := firstJSONObject(plain)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			var payload struct {
+				Sauth map[string]any `json:"sauth_json"`
+			}
+			if err := json.Unmarshal(object, &payload); err != nil {
+				t.Error(err)
+				return
+			}
+			if payload.Sauth["platform"] != "pc" || payload.Sauth["sdkuid"] != "9000000001" || payload.Sauth["pc_nonce"] == nil {
+				t.Error("PC-to-PE login changed the original cookie")
+			}
+			response, err := g79Encrypt([]byte(`{"code":0,"entity":{"entity_id":"70007","token":"0123456789abcdef"}}`))
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			_, _ = w.Write([]byte(hex.EncodeToString(response)))
+		case "/pe-user-detail/get":
+			writeJSON(t, w, map[string]any{"code": 0, "entity": map[string]string{"entity_id": "70007", "name": "PE User"}})
+		default:
+			t.Errorf("unexpected endpoint %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	engine, err := New(Config{DataDir: t.TempDir(), Endpoints: Endpoints{G79Release: server.URL + "/release"}, G79: G79Profile{PatchVersion: "3.8.49.297835", ResourcesHash: strings.Repeat("a", 32)}, AllowLocalTestEndpoints: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, err := engine.OpenAccount(context.Background(), ProviderCookie, "pc-for-pe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie, _ := pcCookie(t, "session")
+	credential, err := account.ImportCookie(context.Background(), cookie)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := account.LoginG79(context.Background(), credential)
+	if err != nil || session.Platform != PlatformG79 || session.UserID != "70007" {
+		t.Fatalf("PC-to-PE login: %v", err)
+	}
+}
 
 func pcCookie(t *testing.T, sessionID string) (string, string) {
 	t.Helper()
@@ -123,9 +190,6 @@ func TestPCCookieLoginRetainsSauthAndDevice(t *testing.T) {
 	}
 	if otpCalls.Load() != 1 || authenticationCalls.Load() != 1 {
 		t.Fatal("PC login did not complete both OTP requests")
-	}
-	if _, err := account.LoginG79(context.Background(), credential); !errors.Is(err, ErrInvalidCredential) {
-		t.Fatalf("PC credential accepted by Android login: %v", err)
 	}
 	reopenedEngine, err := New(config)
 	if err != nil {

@@ -47,6 +47,7 @@
     "squat_timeout_seconds": 25,
     "squat_max_strikes": 3,
     "squat_ban_file": "squat_bans.json",
+    "timeout_ban_enabled": false,
     "squat_guard_disabled": false
   },
   "slots": {

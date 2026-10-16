@@ -27,5 +27,6 @@
 | `golang.org/x/crypto` | `v0.48.0` | [LICENSE](licenses/golang.org/x/crypto/LICENSE) |
 | `golang.org/x/net` | `v0.50.0` | [LICENSE](licenses/golang.org/x/net/LICENSE) |
 | `golang.org/x/sys` | `v0.41.0` | [LICENSE](licenses/golang.org/x/sys/LICENSE) |
+| `golang.org/x/term` | `v0.40.0` | [LICENSE](licenses/golang.org/x/term/LICENSE) |
 | `golang.org/x/time` | `v0.14.0` | [LICENSE](licenses/golang.org/x/time/LICENSE) |
 | Go 标准库 | 随构建工具链 | [LICENSE](licenses/Go/LICENSE) |

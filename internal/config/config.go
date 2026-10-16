@@ -34,6 +34,7 @@ type Kick struct {
 	SquatStrikes  int    `json:"squat_max_strikes"`
 	SquatBanFile  string `json:"squat_ban_file"`
 	SquatGuardOff bool   `json:"squat_guard_disabled"`
+	TimeoutBan    bool   `json:"timeout_ban_enabled"`
 }
 
 type Slots struct {

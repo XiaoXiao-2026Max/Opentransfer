@@ -57,7 +57,7 @@ func TestProxyIgnoresTransferBlacklist(t *testing.T) {
 	s.closeGuest(g)
 }
 
-func TestTransferTimeoutStillClosesAndStrikesIdleGuest(t *testing.T) {
+func TestTransferTimeoutClosesWithoutBanningConnectionFailure(t *testing.T) {
 	s := testService(t)
 	s.cfg.Transfer = true
 	s.cfg.Kick.Mode = config.KickSafe
@@ -74,9 +74,44 @@ func TestTransferTimeoutStillClosesAndStrikesIdleGuest(t *testing.T) {
 	}
 	s.onSquatTimeout(g)
 	s.onSquatTimeout(g)
-	if !g.closed || !p.closed || ctx.Err() == nil || len(l.kicks) != 1 || s.squat.strikes[123] != 1 {
-		t.Fatal("idle transfer guest was not closed and struck exactly once")
+	if !g.closed || !p.closed || ctx.Err() == nil || len(l.kicks) != 1 || s.squat.strikes[123] != 0 {
+		t.Fatal("connection failure was not released safely or was counted as abuse")
 	}
+}
+
+func TestTimeoutBanRequiresOptInAndNegotiation(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		for _, negotiated := range []bool{false, true} {
+			s := testService(t)
+			s.cfg.Transfer = true
+			s.cfg.Kick.TimeoutBan = enabled
+			s.lobbyCli = &testLobby{}
+			g := &guest{uid: 123, peer: &testPeer{}, negotiated: negotiated}
+			s.guests[g.uid] = g
+			s.onSquatTimeout(g)
+			want := 0
+			if enabled && negotiated {
+				want = 1
+			}
+			if s.squat.strikes[g.uid] != want {
+				t.Fatal("incorrect timeout strike policy")
+			}
+		}
+	}
+}
+
+func TestTransferIgnoresOldAutomaticBlacklistByDefault(t *testing.T) {
+	s := testService(t)
+	s.cfg.Transfer = true
+	l := &testLobby{}
+	s.lobbyCli = l
+	s.squat.banned[123] = struct{}{}
+	s.onGuestJoin(lobby.NewGuest{UID: 123, NethernetID: "456"})
+	g := s.guests[123]
+	if g == nil || len(l.kicks) != 0 {
+		t.Fatal("legacy automatic ban blocked a retry")
+	}
+	s.closeGuest(g)
 }
 
 func TestTransferTimeoutProtectsRequestedAndCompletedTransfer(t *testing.T) {

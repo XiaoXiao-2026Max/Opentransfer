@@ -245,8 +245,8 @@ func TestValidateCookieUsesLoginCredentialRules(t *testing.T) {
 			t.Fatalf("malformed cookie accepted or error lost: %v", err)
 		}
 	}
-	if err := ValidateCookie(pc, ModeG79); !errors.Is(err, authengine.ErrInvalidCredential) {
-		t.Fatalf("PC cookie accepted for Android login: %v", err)
+	if err := ValidateCookie(pc, ModeG79); err != nil {
+		t.Fatalf("PC cookie cannot be used for PE login: %v", err)
 	}
 	if err := ValidateCookie(pc, "invalid"); err == nil {
 		t.Fatal("unsupported mode accepted")

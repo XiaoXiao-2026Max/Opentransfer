@@ -1,6 +1,6 @@
 param(
     [string]$OutputDir = (Join-Path $PSScriptRoot '..\dist\packages\windows-amd64'),
-    [string]$Version = '0.1.0'
+    [string]$Version = '0.1.1'
 )
 
 $ErrorActionPreference = 'Stop'
