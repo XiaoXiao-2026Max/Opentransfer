@@ -32,11 +32,12 @@ func (s *Service) resolveProtocolID(ctx context.Context) error {
 	}
 	id, err := netease.FetchProtocolID(ctx, s.cfg.VersionMapURL, s.cfg.EngineVersion)
 	if err != nil {
-		if s.cfg.EngineVersion != "3.9" {
+		fallback := map[string]int{"3.9": 42, "3.10": 43}[s.cfg.EngineVersion]
+		if fallback == 0 {
 			return fmt.Errorf("无法取得引擎 %s 的协议号: %w", s.cfg.EngineVersion, err)
 		}
-		s.log.Warnf("获取版本表失败，使用协议号42：%v", err)
-		s.protocolID = 42
+		s.log.Warnf("获取版本表失败，使用协议号%d：%v", fallback, err)
+		s.protocolID = fallback
 		return nil
 	}
 	s.protocolID = id

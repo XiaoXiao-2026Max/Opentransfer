@@ -10,7 +10,7 @@ import (
 	"github.com/XiaoXiao-2026Max/Opentransfer/internal/bedrock"
 )
 
-const DefaultProfile = "bedrock-860"
+const DefaultProfile = "bedrock-898"
 
 type Frame struct {
 	Name string
@@ -24,8 +24,8 @@ type Profile struct {
 }
 
 func Load(name string) (*Profile, error) {
-	if name != DefaultProfile {
-		return nil, fmt.Errorf("handshake: 不支持配置 %q，可用配置: %s", name, DefaultProfile)
+	if name != DefaultProfile && name != "bedrock-860" {
+		return nil, fmt.Errorf("handshake: 不支持配置 %q，可用配置: bedrock-898 / bedrock-860", name)
 	}
 	dir := "profiles/" + name + "/"
 	raw, err := profileFile(dir + "manifest.json")

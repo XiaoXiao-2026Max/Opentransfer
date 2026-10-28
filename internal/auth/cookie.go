@@ -123,7 +123,10 @@ func ResolveCookie(ctx context.Context, engine *authengine.Engine, value string)
 	if err := authengine.ValidateImportedCredential(parsed); err != nil {
 		return nil, nil, err
 	}
-	account, err := engine.OpenAccount(ctx, parsed.Provider, cookieAccountKey(parsed))
+	account, err := engine.FindCredentialAccount(ctx, parsed)
+	if err == nil && account == nil {
+		account, err = engine.OpenAccount(ctx, parsed.Provider, cookieAccountKey(parsed))
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("打开账号: %w", err)
 	}

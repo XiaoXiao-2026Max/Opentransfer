@@ -296,8 +296,13 @@ func (c *Client) openConnectionRequest2(reply1 []byte, deadline time.Time) error
 	off += 8
 	hasCookie := reply1[off]
 	off++
+	var cookie []byte
 	if hasCookie != 0 {
-		return errors.New("raknet: 服务端启用了 LIBCAT 安全握手，暂不支持")
+		if hasCookie != 1 || len(reply1) != off+4+2 {
+			return errors.New("raknet: 不支持的安全握手或无效的 Cookie 响应")
+		}
+		cookie = reply1[off : off+4]
+		off += 4
 	}
 	serverMTU := binary.BigEndian.Uint16(reply1[off : off+2])
 	if serverMTU < 400 || serverMTU > 1492 {
@@ -310,6 +315,10 @@ func (c *Client) openConnectionRequest2(reply1 []byte, deadline time.Time) error
 	req := make([]byte, 0, 64)
 	req = append(req, idOpenConnectionRequest2)
 	req = append(req, magic...)
+	if cookie != nil {
+		req = append(req, cookie...)
+		req = append(req, 0)
+	}
 	req = writeAddr(req, c.remote)
 	req = binary.BigEndian.AppendUint16(req, c.mtu)
 	req = binary.BigEndian.AppendUint64(req, c.clientGUID)

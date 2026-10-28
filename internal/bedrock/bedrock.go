@@ -162,6 +162,13 @@ func ResourcePackStack() []byte {
 	return Frame(Batch(resourcePackStackEmpty))
 }
 
+func ResourcePackStackForProtocol(protocol uint32) []byte {
+	if protocol == 898 {
+		return Frame(Batch(mustHex("070000012a0000000000000000")))
+	}
+	return ResourcePackStack()
+}
+
 func Transfer(address string, port uint16) []byte {
 	addr := []byte(address)
 	pkt := make([]byte, 0, len(addr)+8)

@@ -53,7 +53,7 @@ func buildScript(cfg *config.Config, rng *rand.Rand, log *logx.Logger) (*script,
 	if !cfg.Transfer {
 		return s, nil
 	}
-	if cfg.Handshake.Profile == handshake.DefaultProfile {
+	if cfg.Handshake.Profile != "custom" {
 		profile, err := handshake.Load(cfg.Handshake.Profile)
 		if err != nil {
 			return nil, err
@@ -61,7 +61,7 @@ func buildScript(cfg *config.Config, rng *rand.Rand, log *logx.Logger) (*script,
 		if profile.Protocol != cfg.Handshake.ProtocolVersion {
 			return nil, fmt.Errorf("transfer: 握手协议号不匹配")
 		}
-		s.steps = append(s.steps, step{stepRaw, "builtin:login_ack", bedrock.LoginAck()}, step{stepRaw, "builtin:resource_pack_stack", bedrock.ResourcePackStack()})
+		s.steps = append(s.steps, step{stepRaw, "builtin:login_ack", bedrock.LoginAck()}, step{stepRaw, "builtin:resource_pack_stack", bedrock.ResourcePackStackForProtocol(profile.Protocol)})
 		for _, frame := range profile.Frames {
 			s.steps = append(s.steps, step{stepRaw, frame.Name, frame.Data})
 		}
@@ -85,7 +85,7 @@ func buildScript(cfg *config.Config, rng *rand.Rand, log *logx.Logger) (*script,
 			}
 			s.steps = append(s.steps, step{stepRaw, name, data})
 		case name == "builtin:resource_pack_stack":
-			data := bedrock.ResourcePackStack()
+			data := bedrock.ResourcePackStackForProtocol(cfg.Handshake.ProtocolVersion)
 			if legacy {
 				data = bedrock.LegacyResourcePackStack
 			}

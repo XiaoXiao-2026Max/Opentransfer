@@ -123,6 +123,24 @@ func (e *Engine) OpenAccount(ctx context.Context, provider Provider, accountKey 
 	return &Account{engine: e, ref: ref, recordID: record.ID}, nil
 }
 
+func (e *Engine) FindCredentialAccount(ctx context.Context, credential *Credential) (*Account, error) {
+	if e == nil || e.store == nil {
+		return nil, ErrMissingConfiguration
+	}
+	if err := ValidateImportedCredential(credential); err != nil {
+		return nil, err
+	}
+	identity := credentialIdentity{Provider: credential.Provider, Platform: credential.Sauth.Platform, SDKUID: credential.Sauth.SDKUID, DeviceID: credential.Sauth.DeviceID, UDID: credential.Sauth.UDID, IsGuest: credential.IsGuest, Emulator: credential.Emulator}
+	recordID, err := e.store.findCredential(ctx, identity)
+	if err != nil {
+		return nil, storeError("find credential", err)
+	}
+	if recordID == "" {
+		return nil, nil
+	}
+	return &Account{engine: e, ref: accountRef{Provider: credential.Provider}, recordID: recordID}, nil
+}
+
 func (a *Account) Device() (DeviceProfile, error) {
 	if a == nil || a.engine == nil || a.engine.store == nil {
 		return DeviceProfile{}, ErrInvalidAccount
@@ -156,13 +174,17 @@ func (a *Account) ImportCookie(ctx context.Context, cookie string) (*Credential,
 		return nil, err
 	}
 	if credential.Sauth.Platform == "pc" {
-		device, err := a.Device()
+		record, err := a.record()
 		if err != nil {
 			return nil, err
 		}
+		device := record.Device
 		if credential.Sauth.UDID == "" {
 			credential.Sauth.UDID = device.Windows.UDID
-			credential.importedSauth.UDID = device.Windows.UDID
+			if identityPlatform(record.Identity) == "pc" && record.Identity.SDKUID == credential.Sauth.SDKUID && record.Identity.DeviceID == credential.Sauth.DeviceID {
+				credential.Sauth.UDID = record.Identity.UDID
+			}
+			credential.importedSauth.UDID = credential.Sauth.UDID
 		}
 		if credential.MAC == "" {
 			credential.MAC = device.Android.MAC

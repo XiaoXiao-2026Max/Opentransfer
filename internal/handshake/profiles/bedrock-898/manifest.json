@@ -1,0 +1,135 @@
+{
+  "protocol": 898,
+  "client_version": "1.21.130.0",
+  "captured_on": "2026-10-28",
+  "source": "NetEase 3.10 mcpe_server, offline probe",
+  "frames": [
+    {
+      "file": "01-id-124.hex",
+      "packet_id": 124,
+      "sha256": "d63f3e1d0759bbb4fde85d1ed97d93edf5ede29d8784c2980c68efd9646b66ad"
+    },
+    {
+      "file": "02-id-63.hex",
+      "packet_id": 63,
+      "sha256": "5f91b1b4625bd3e07a2c452f19657817c90f1ed912b3f4ee0ec8056168872ba4"
+    },
+    {
+      "file": "03-id-10.hex",
+      "packet_id": 10,
+      "sha256": "c63ff68e3ca3c14284bc82238e1f0a4e79d165205025a95a8f213ba72dca8306"
+    },
+    {
+      "file": "04-id-313.hex",
+      "packet_id": 313,
+      "sha256": "eb3d2f48289c5d835b5f188e36a48e012d2e5f6d9075d70d02c3caf61ff107ca"
+    },
+    {
+      "file": "05-id-11.hex",
+      "packet_id": 11,
+      "sha256": "40eba0d8b7c2f2e551a0bf1151c298e4767dc4a10d2aadb679362a509788e476"
+    },
+    {
+      "file": "06-id-165.hex",
+      "packet_id": 165,
+      "sha256": "3b95e06f63ba59599652eb770192f81363df4bb898934801e56368cf205f1819"
+    },
+    {
+      "file": "07-id-165.hex",
+      "packet_id": 165,
+      "sha256": "88c0a56e331837eae9716f67dc26efda611a052b1065a4c6463516c7294df5fe"
+    },
+    {
+      "file": "08-id-165.hex",
+      "packet_id": 165,
+      "sha256": "6638ac0301d1d133cd4699a0ac01f6ce4a1ab03a03ca91fc963c65ae8011b708"
+    },
+    {
+      "file": "09-id-165.hex",
+      "packet_id": 165,
+      "sha256": "9ff8ae57fd7160ca58a55ba0e43be79c8fd966e1e0cf4d2312eb2a16d99b36b0"
+    },
+    {
+      "file": "10-id-165.hex",
+      "packet_id": 165,
+      "sha256": "d48ec6fe43d66fc0a1dd936952be9294ca5d4e1dc36b4661f673850b57a5c88d"
+    },
+    {
+      "file": "11-id-165.hex",
+      "packet_id": 165,
+      "sha256": "8752d19d617d9f09fe82a3705084e8daa741ee4428816b9c6d9c8866ad2d917f"
+    },
+    {
+      "file": "12-id-165.hex",
+      "packet_id": 165,
+      "sha256": "78f7b398b4837195bc9f2122ff5e5e67e688306e29de95b31a6ffeaa55955e56"
+    },
+    {
+      "file": "13-id-165.hex",
+      "packet_id": 165,
+      "sha256": "187fd550863957b3e08bb7e0ac5f41843407275233e79ac3575e58ef0f668312"
+    },
+    {
+      "file": "14-id-165.hex",
+      "packet_id": 165,
+      "sha256": "6586a871750003c65ca62b95b6be8a27c732445739e4cd32831959523c14fe81"
+    },
+    {
+      "file": "15-id-165.hex",
+      "packet_id": 165,
+      "sha256": "8b49e85525c54941f4c8e025208640a29b933011050dbd2ac534f272fbb0b7f4"
+    },
+    {
+      "file": "16-id-165.hex",
+      "packet_id": 165,
+      "sha256": "8b408a7980123a96e5ed6e5bb08a375581c0826e7f05d06ccae471679447859e"
+    },
+    {
+      "file": "17-id-162.hex",
+      "packet_id": 162,
+      "sha256": "8699189f44d0612d954711b3810204d3adfce2741eb7c9fcb9cb72b78e41092b"
+    },
+    {
+      "file": "18-id-43.hex",
+      "packet_id": 43,
+      "sha256": "e7c013ec8cf1efb932213418aa88783760cace407a31993345416b9160f82bf5"
+    },
+    {
+      "file": "19-id-10.hex",
+      "packet_id": 10,
+      "sha256": "c63ff68e3ca3c14284bc82238e1f0a4e79d165205025a95a8f213ba72dca8306"
+    },
+    {
+      "file": "20-id-208.hex",
+      "packet_id": 208,
+      "sha256": "1908a09877c8472b7208cf201fb684729b1aa369cb57d0e5d60dd1c1f88d9fc3"
+    },
+    {
+      "file": "21-id-210.hex",
+      "packet_id": 210,
+      "sha256": "1dc449369bbf22826fb21dfc4d6ebb8039c1553451ad8bf1c12b40c34fccb08a"
+    },
+    {
+      "file": "22-id-60.hex",
+      "packet_id": 60,
+      "sha256": "07e3f7bb7e2f6536b4dc75d1ccaacbaa232d57b992aed72cfac6441424e16eec"
+    },
+    {
+      "file": "23-id-59.hex",
+      "packet_id": 59,
+      "sha256": "b297d664e258bb7e1bc6b74d51d1231d164ce7dbcbae9f785a2f4277ffc9183a"
+    },
+    {
+      "file": "24-id-188.hex",
+      "packet_id": 188,
+      "sha256": "725f070d38f2846d0ce05234d9035187b9a9075c3289b4c9714655c71068a352"
+    },
+    {
+      "file": "25-id-187.hex",
+      "packet_id": 187,
+      "sha256": "28838471f4e514a6eec44edc7056d19f1ecebaef7e55d7c3e06b594ef22c24f7"
+    }
+  ],
+  "validated_on": "2026-10-28",
+  "validation": "NetEase 3.10 client completed transfer and entered the remote 1.21.130.0 world"
+}

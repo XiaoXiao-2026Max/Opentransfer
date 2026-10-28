@@ -42,6 +42,48 @@ func newTestClient(t *testing.T) (*Client, *net.UDPConn) {
 	return c, server
 }
 
+func TestOpenConnectionEchoesServerCookie(t *testing.T) {
+	c, server := newTestClient(t)
+	cookie := []byte{0xf5, 0x94, 0x93, 0x1c}
+	reply := append([]byte{idOpenConnectionReply1}, magic...)
+	reply = binary.BigEndian.AppendUint64(reply, 123)
+	reply = append(reply, 1)
+	reply = append(reply, cookie...)
+	reply = binary.BigEndian.AppendUint16(reply, 1400)
+	done := make(chan error, 1)
+	go func() {
+		buffer := make([]byte, 1500)
+		_ = server.SetReadDeadline(time.Now().Add(2 * time.Second))
+		n, address, err := server.ReadFromUDP(buffer)
+		if err != nil {
+			done <- err
+			return
+		}
+		if n != 39 || buffer[0] != idOpenConnectionRequest2 || !bytes.Equal(buffer[17:21], cookie) || buffer[21] != 0 {
+			done <- errors.New("cookie or no-challenge marker missing from request2")
+			return
+		}
+		out := append([]byte{idOpenConnectionReply2}, magic...)
+		out = binary.BigEndian.AppendUint64(out, 123)
+		out = writeAddr(out, address)
+		out = binary.BigEndian.AppendUint16(out, 1400)
+		out = append(out, 0)
+		_, err = server.WriteToUDP(out, address)
+		done <- err
+	}()
+	if err := c.openConnectionRequest2(reply, time.Now().Add(2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range [][]byte{reply[:28], reply[:31], append(append([]byte(nil), reply...), 0)} {
+		if err := c.openConnectionRequest2(invalid, time.Now().Add(time.Second)); err == nil {
+			t.Fatal("malformed or encrypted cookie handshake accepted")
+		}
+	}
+}
+
 func dataPacket(seq uint32, frames ...frame) []byte {
 	out := putUint24([]byte{flagValid | flagNeedsBAndAS}, seq)
 	for _, f := range frames {

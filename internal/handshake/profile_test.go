@@ -11,7 +11,7 @@ import (
 )
 
 func TestEmbeddedProfileMatchesValidatedPrefix(t *testing.T) {
-	profile, err := Load(DefaultProfile)
+	profile, err := Load("bedrock-860")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,5 +45,26 @@ func TestEmbeddedProfileMatchesValidatedPrefix(t *testing.T) {
 	id, ok := bedrock.FirstPacketID(batch)
 	if !ok || id != 72 {
 		t.Fatal("prefix no longer ends before the incompatible GameRulesChanged packet")
+	}
+}
+
+func Test898ProfileMatchesCapturedPacketOrder(t *testing.T) {
+	profile, err := Load(DefaultProfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []uint32{124, 63, 10, 313, 11, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 162, 43, 10, 208, 210, 60, 59, 188, 187}
+	if profile.Protocol != 898 || len(profile.Frames) != len(want) {
+		t.Fatal("incorrect 898 profile")
+	}
+	for i, frame := range profile.Frames {
+		batch, err := bedrock.Unwrap(frame.Data, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, ok := bedrock.FirstPacketID(batch)
+		if !ok || id != want[i] {
+			t.Fatalf("898 frame %d: got %d, want %d", i, id, want[i])
+		}
 	}
 }

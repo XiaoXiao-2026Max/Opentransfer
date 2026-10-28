@@ -98,6 +98,35 @@ func (s *fileStore) load(recordID string) (*deviceRecord, error) {
 	return s.loadRecord(recordID)
 }
 
+func (s *fileStore) findCredential(ctx context.Context, identity credentialIdentity) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	release, err := s.acquire(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	var recordID string
+	refs := internalIdentityRefs(identity)
+	if identity.UDID == "" {
+		refs = refs[:2]
+	}
+	for _, ref := range refs {
+		existing, err := s.readRef(s.refPath(ref))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		if recordID != "" && recordID != existing {
+			return "", ErrCredentialConflict
+		}
+		recordID = existing
+	}
+	return recordID, nil
+}
+
 func (s *fileStore) update(ctx context.Context, recordID string, apply func(*deviceRecord) error) (*deviceRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

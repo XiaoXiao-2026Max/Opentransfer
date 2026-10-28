@@ -26,6 +26,31 @@ func TestKickModeDefaultsAndMigration(t *testing.T) {
 	}
 }
 
+func TestWireVersionDefaultsAndLegacyCompatibility(t *testing.T) {
+	for _, tc := range []struct {
+		profile      string
+		protocol     uint32
+		engine, host string
+	}{
+		{"", 898, "3.10", "1.21.130.0"},
+		{"bedrock-898", 898, "3.10", "1.21.130.0"},
+		{"bedrock-860", 860, "3.9", "1.21.120.0"},
+	} {
+		c := Config{CookieFile: "cookie.json", Transfer: true, TransferServer: "127.0.0.1", Handshake: Handshake{Profile: tc.profile}}
+		c.applyDefaults()
+		if err := c.validate(); err != nil {
+			t.Fatal(err)
+		}
+		if c.Handshake.ProtocolVersion != tc.protocol || c.EngineVersion != tc.engine || c.HostMCVer != tc.host {
+			t.Fatalf("wrong defaults for %q", tc.profile)
+		}
+		c.Handshake.ProtocolVersion++
+		if c.validate() == nil {
+			t.Fatal("mixed protocol profile accepted")
+		}
+	}
+}
+
 func TestLoadWindowsConfigAndCookie(t *testing.T) {
 	for _, bom := range []string{"", "\ufeff"} {
 		t.Run("cookie BOM="+bom, func(t *testing.T) {

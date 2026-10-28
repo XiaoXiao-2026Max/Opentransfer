@@ -52,6 +52,7 @@ func (s *Service) handleTransferMode(g *guest, msg []byte) {
 		if s.cfg.Handshake.UseLegacyFrames {
 			frame = bedrock.LegacyNetworkSettings
 		}
+		s.dumpOutbound(g, frame)
 		if err := g.peer.Send(frame); err != nil {
 			s.log.Warnf("用户%d发送网络设置失败：%v", g.uid, err)
 			s.closeGuest(g)
@@ -104,6 +105,7 @@ func (s *Service) sendHandshake(g *guest) error {
 			g.transferAttempted = true
 		}
 		g.mu.Unlock()
+		s.dumpOutbound(g, frame.data)
 		if err := g.peer.Send(frame.data); err != nil {
 			return fmt.Errorf("第 %d/%d 帧: %w", i+1, len(frames), err)
 		}

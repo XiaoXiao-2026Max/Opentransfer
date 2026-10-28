@@ -7,7 +7,7 @@
   "token_md5": "",
   "nickname": "",
   "platform": 2,
-  "engine_version": "3.9",
+  "engine_version": "3.10",
   "protocol_id": null,
   "auto_protocol_id": true,
   "transfer": true,
@@ -34,7 +34,7 @@
   "player_auth": 1,
   "password": "",
   "map_id": "0",
-  "host_minecraft_version": "1.21.120.0",
+  "host_minecraft_version": "1.21.130.0",
   "enable_webrtc": true,
   "owner_ping": 3,
   "perf_lv": 3,
@@ -56,14 +56,16 @@
     "max_capacity": 10
   },
   "handshake": {
-    "profile": "bedrock-860",
-    "protocol_version": 860,
+    "profile": "bedrock-898",
+    "protocol_version": 898,
     "interval_ms": 500,
     "transfer_repeat": 1
   },
   "send_login_profile": false,
   "diagnostics": {
     "dump_inbound": false,
+    "dump_outbound": false,
+    "max_messages": 128,
     "directory": "diagnostics",
     "max_files": 64,
     "max_bytes": 33554432

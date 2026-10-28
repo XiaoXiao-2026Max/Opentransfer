@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 )
 
-const DefaultHostMCVersion = "1.21.120.0"
+const DefaultHostMCVersion = "1.21.130.0"
 
 const (
 	KickDisconnect = "disconnect"
@@ -44,10 +44,12 @@ type Slots struct {
 }
 
 type Diagnostics struct {
-	DumpInbound bool   `json:"dump_inbound"`
-	Directory   string `json:"directory"`
-	MaxFiles    int    `json:"max_files"`
-	MaxBytes    int64  `json:"max_bytes"`
+	DumpInbound  bool   `json:"dump_inbound"`
+	DumpOutbound bool   `json:"dump_outbound"`
+	MaxMessages  int    `json:"max_messages"`
+	Directory    string `json:"directory"`
+	MaxFiles     int    `json:"max_files"`
+	MaxBytes     int64  `json:"max_bytes"`
 }
 
 type Experimental struct {
@@ -199,7 +201,10 @@ func (c *Config) applyDefaults() {
 		c.LogLevel = "info"
 	}
 	if c.EngineVersion == "" {
-		c.EngineVersion = "3.9"
+		c.EngineVersion = "3.10"
+		if c.Handshake.Profile == "bedrock-860" || c.Handshake.Profile == "" && c.Handshake.ProtocolVersion == 860 {
+			c.EngineVersion = "3.9"
+		}
 	}
 	if c.Nickname == "" {
 		c.Nickname = "Connect"
@@ -237,14 +242,22 @@ func (c *Config) applyDefaults() {
 	if c.Handshake.Profile == "" {
 		if len(c.Handshake.Steps) > 0 {
 			c.Handshake.Profile = "custom"
-		} else {
+		} else if c.Handshake.ProtocolVersion == 860 {
 			c.Handshake.Profile = "bedrock-860"
+		} else {
+			c.Handshake.Profile = "bedrock-898"
 		}
 	}
 	if c.Handshake.ProtocolVersion == 0 && c.Handshake.Profile == "bedrock-860" {
 		c.Handshake.ProtocolVersion = 860
 	}
+	if c.Handshake.ProtocolVersion == 0 && c.Handshake.Profile == "bedrock-898" {
+		c.Handshake.ProtocolVersion = 898
+	}
 	if c.HostMCVer == "" && c.Handshake.Profile == "bedrock-860" {
+		c.HostMCVer = "1.21.120.0"
+	}
+	if c.HostMCVer == "" && c.Handshake.Profile == "bedrock-898" {
 		c.HostMCVer = DefaultHostMCVersion
 	}
 	if c.Diagnostics.Directory == "" {
@@ -252,6 +265,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Diagnostics.MaxFiles == 0 {
 		c.Diagnostics.MaxFiles = 64
+	}
+	if c.Diagnostics.MaxMessages == 0 {
+		c.Diagnostics.MaxMessages = 128
 	}
 	if c.Diagnostics.MaxBytes == 0 {
 		c.Diagnostics.MaxBytes = 32 << 20
@@ -302,11 +318,11 @@ func (c *Config) validate() error {
 	if !c.AutoProtocolIDValue() && c.ProtocolID == nil {
 		return fmt.Errorf("config: auto_protocol_id=false 时必须指定 protocol_id")
 	}
-	if c.Diagnostics.MaxFiles < 1 || c.Diagnostics.MaxBytes < 1 {
+	if c.Diagnostics.MaxFiles < 1 || c.Diagnostics.MaxBytes < 1 || c.Diagnostics.MaxMessages < 1 || c.Diagnostics.MaxMessages > 4096 {
 		return fmt.Errorf("config: diagnostics 配额必须为正数")
 	}
 	if c.Transfer {
-		if c.Handshake.Profile != "bedrock-860" && c.Handshake.Profile != "custom" {
+		if c.Handshake.Profile != "bedrock-860" && c.Handshake.Profile != "bedrock-898" && c.Handshake.Profile != "custom" {
 			return fmt.Errorf("config: 未知 handshake.profile %q", c.Handshake.Profile)
 		}
 		if c.Handshake.ProtocolVersion == 0 {
@@ -314,6 +330,9 @@ func (c *Config) validate() error {
 		}
 		if c.Handshake.Profile == "bedrock-860" && (c.Handshake.ProtocolVersion != 860 || len(c.Handshake.Steps) > 0 || c.Handshake.UseLegacyFrames) {
 			return fmt.Errorf("config: bedrock-860 配置不允许混用其他版本或自定义步骤")
+		}
+		if c.Handshake.Profile == "bedrock-898" && (c.Handshake.ProtocolVersion != 898 || len(c.Handshake.Steps) > 0 || c.Handshake.UseLegacyFrames) {
+			return fmt.Errorf("config: bedrock-898 配置不允许混用其他版本或自定义步骤")
 		}
 		if c.Handshake.Profile == "custom" && len(c.Handshake.Steps) == 0 {
 			return fmt.Errorf("config: 自定义握手缺少 steps")

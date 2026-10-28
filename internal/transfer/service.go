@@ -19,13 +19,14 @@ import (
 )
 
 type Service struct {
-	ctx     context.Context
-	cancel  context.CancelFunc
-	closing bool
-	dumpMu  sync.Mutex
-	cfg     *config.Config
-	log     *logx.Logger
-	rng     *mathrand.Rand
+	ctx          context.Context
+	cancel       context.CancelFunc
+	closing      bool
+	dumpMu       sync.Mutex
+	dumpSequence uint64
+	cfg          *config.Config
+	log          *logx.Logger
+	rng          *mathrand.Rand
 
 	protocolID int
 	localID    uint64
@@ -95,6 +96,7 @@ type guest struct {
 	negotiated  bool
 	scriptSent  bool
 	inbound     int
+	outbound    int
 	transferred bool
 	target      target
 

@@ -133,6 +133,7 @@ func (s *Service) onBackendPacket(g *guest, b []byte) {
 	}
 	out := append([]byte(nil), b...)
 	out[0] = 0x00
+	s.dumpOutbound(g, out)
 	if err := peer.Send(out); err != nil {
 		s.log.Warnf("用户%d回传数据失败：%v", g.uid, err)
 		s.closeGuest(g)

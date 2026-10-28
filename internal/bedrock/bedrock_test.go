@@ -6,6 +6,19 @@ import (
 	"testing"
 )
 
+func Test898ResourcePackStackMatchesServer(t *testing.T) {
+	want, err := hex.DecodeString("00ff0d070000012a0000000000000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(ResourcePackStackForProtocol(898), want) {
+		t.Fatal("898 resource-pack stack differs from the captured server packet")
+	}
+	if !bytes.Equal(ResourcePackStackForProtocol(860), ResourcePackStack()) {
+		t.Fatal("legacy resource-pack stack changed")
+	}
+}
+
 func TestBuiltinFramesMatchLegacy(t *testing.T) {
 	cases := []struct {
 		name   string
