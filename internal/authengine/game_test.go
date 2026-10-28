@@ -138,7 +138,12 @@ func TestG79AndX19LoginFromIndependentCookie(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	engine, err := New(Config{DataDir: t.TempDir(), Endpoints: Endpoints{G79Release: server.URL + "/g79-release", G79PatchList: server.URL + "/patch-list", X19Release: server.URL + "/x19-release"}, AllowLocalTestEndpoints: true})
+	engine, err := New(Config{
+		DataDir:                 t.TempDir(),
+		Endpoints:               Endpoints{G79Release: server.URL + "/g79-release", G79PatchList: server.URL + "/patch-list", X19Release: server.URL + "/x19-release"},
+		G79:                     G79Profile{EngineVersion: "3.8.15.292836", LibraryHash: "c50629910b3d5a1a32a1b47fe7a94bfa", SignOffset: 4, SignRounds: 7, Step: "695616851", Step2: "2146985406"},
+		AllowLocalTestEndpoints: true,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

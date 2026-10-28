@@ -114,6 +114,11 @@ func TestGuestCookieCheckAndRealNameContinuation(t *testing.T) {
 			if payload["is_unisdk_guest"] != float64(0) || payload["sdkuid"] != "9000000001" || payload["sessionid"] != "test-session-token" {
 				t.Error("SDK check sent a registered MPay account as a UniSDK guest")
 			}
+			sdkLogJSON, ok := payload["sdklog"].(string)
+			var sdkLog map[string]any
+			if !ok || json.Unmarshal([]byte(sdkLogJSON), &sdkLog) != nil || sdkLog["app_ver"] != "840292836" {
+				t.Error("G79 profile change modified the existing X19 SDK app version")
+			}
 			status, verifyStatus := "0", 0
 			if verified {
 				status, verifyStatus = "1", 1

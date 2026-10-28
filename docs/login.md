@@ -23,4 +23,6 @@ connect -login -login-method guest -resume-login -cookie-out cookie.json
 
 `auth_mode=auto` 按平台选择；`x19` 为 PC，`g79` 为 PE。PC Cookie 也支持选择 PE。Cookie 有效不代表平台允许登录游戏，实名、有效期和风控仍由平台决定。
 
+G79 默认引擎版本为 `3.10.0.300878`，补丁为 `3.10.6.301389`。版本与资源哈希固定使用同一次客户端实包核对的数据，避免自动推算覆盖已验证哈希。`sign` 使用 offset=2、rounds=8，随每次请求的新 `seed` 重新计算；`step` 和 `step2` 均为字符串 `"0"`。大厅配置中的 `engine_version` 不控制这些账号登录参数。x19 登录和共享 SDK 参数保持不变。
+
 密码和 Cookie 不打印到日志。设备记录默认保存在用户配置目录的 `Opentransfer/AuthEngine`；`-auth-data-dir` 可指定位置。保留该目录以复用账号设备。

@@ -29,6 +29,8 @@ type Endpoints struct {
 	Channel4399Web string
 }
 
+const defaultG79EngineVersion = "3.10.0.300878"
+
 type G79Profile struct {
 	EngineVersion string
 	LibraryHash   string
@@ -104,7 +106,7 @@ func New(config Config) (*Engine, error) {
 		return nil, err
 	}
 	client := cloneBaseHTTPClient(config.HTTPClient)
-	g79Pinned := config.G79.PatchVersion != ""
+	g79Pinned := config.G79.PatchVersion != "" || g79.EngineVersion == defaultG79EngineVersion
 	return &Engine{store: store, httpClient: client, endpoints: endpoints, g79: g79, g79Pinned: g79Pinned, now: time.Now, allowLocal: config.AllowLocalTestEndpoints}, nil
 }
 
@@ -369,7 +371,18 @@ func sameOrigin(first, second *url.URL) bool {
 }
 
 func mergeG79Profile(value G79Profile) G79Profile {
-	defaults := G79Profile{EngineVersion: "3.8.15.292836", LibraryHash: "c50629910b3d5a1a32a1b47fe7a94bfa", SignatureHash: "2b3e7ca013bb30a74d822579860c042b", PatchVersion: "3.8.17.293053", ResourcesHash: "bb7f1b60be0354fbacdc9788514ca401", SignOffset: 4, SignRounds: 7, Step: "695616851", Step2: "2146985406", PayChannel: "dashen_cloudgame"}
+	defaults := G79Profile{
+		EngineVersion: defaultG79EngineVersion,
+		LibraryHash:   "c4fbc0625fe2ff8f3aa0b931feb04217",
+		SignatureHash: "2b3e7ca013bb30a74d822579860c042b",
+		PatchVersion:  "3.10.6.301389",
+		ResourcesHash: "c91713f56bbba226e4e8120c2d7a9ac4",
+		SignOffset:    2,
+		SignRounds:    8,
+		Step:          "0",
+		Step2:         "0",
+		PayChannel:    "dashen_cloudgame",
+	}
 	if value.EngineVersion != "" {
 		defaults.EngineVersion = value.EngineVersion
 	}
